@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: portal-kafka-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: portal-kafka
+  template:
+    metadata:
+      labels:
+        app: portal-kafka
+    spec:
+      containers:
+      - name: portal-kafka
+        image: portal-kafka:latest
+        imagePullPolicy: Never 
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+          value: "host.docker.internal:9092" 
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: portal-kafka-service
+spec:
+  type: NodePort
+  selector:
+    app: portal-kafka
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30080
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: portal-kafka-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: portal-kafka-app
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 50

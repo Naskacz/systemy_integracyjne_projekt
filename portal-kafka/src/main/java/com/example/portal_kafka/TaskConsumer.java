@@ -17,14 +17,10 @@ public class TaskConsumer {
         String taskId = task.getTaskId();
         System.out.println("--> [KAFKA] Rozpoczęto przetwarzanie zadania: " + taskId);
         
-        // Zmiana statusu na "W trakcie"
         statusService.setStatus(taskId, "W TRAKCIE PRZETWARZANIA");
         
         try {
-            // Symulacja ciężkiej pracy / operacji blokującej
             Thread.sleep(task.getSleepTime());
-            
-            // Sukces
             statusService.setStatus(taskId, "ZAKOŃCZONE");
             System.out.println("--> [KAFKA] Zakończono pomyślnie zadanie: " + taskId);
             

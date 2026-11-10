@@ -15,7 +15,7 @@ spec:
       containers:
       - name: portal-kafka
         image: portal-kafka:latest
-        imagePullPolicy: Never 
+        imagePullPolicy: IfNotPresent 
         ports:
         - containerPort: 8080
         env:

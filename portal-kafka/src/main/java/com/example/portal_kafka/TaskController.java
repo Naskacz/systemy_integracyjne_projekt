@@ -19,23 +19,17 @@ public class TaskController {
         this.kafkaTemplate = kafkaTemplate;
         this.statusService = statusService;
     }
-
-    // Endpoint przyjmujący zadanie (zwraca natychmiast 202 Accepted)
     @PostMapping("/task")
     public ResponseEntity<String> submitTask(@RequestParam(defaultValue = "3000") int sleepTime) {
         String taskId = UUID.randomUUID().toString();
         TaskMessage task = new TaskMessage(taskId, sleepTime);
 
-        // Ustawiamy początkowy status w pamięci
         statusService.setStatus(taskId, "OCZEKUJE W KOLEJCE");
-
-        // Wysyłamy do Kafki asynchronicznie
         kafkaTemplate.send(TOPIC, taskId, task);
 
         return ResponseEntity.accepted().body(taskId);
     }
 
-    // Endpoint do sprawdzania statusu (polling z frontendu)
     @GetMapping("/task/{id}/status")
     public ResponseEntity<String> getTaskStatus(@PathVariable String id) {
         String status = statusService.getStatus(id);

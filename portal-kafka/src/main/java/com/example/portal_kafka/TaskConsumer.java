@@ -15,19 +15,19 @@ public class TaskConsumer {
     @KafkaListener(topics = "portal-tasks-topic", groupId = "portal-consumer-group")
     public void consumeTask(TaskMessage task) {
         String taskId = task.getTaskId();
-        System.out.println("--> [KAFKA] Rozpoczęto przetwarzanie zadania: " + taskId);
+        System.out.println("[KAFKA] Rozpoczęto przetwarzanie zadania: " + taskId);
         
         statusService.setStatus(taskId, "W TRAKCIE PRZETWARZANIA");
         
         try {
             Thread.sleep(task.getSleepTime());
             statusService.setStatus(taskId, "ZAKOŃCZONE");
-            System.out.println("--> [KAFKA] Zakończono pomyślnie zadanie: " + taskId);
+            System.out.println("[KAFKA] Zakończono pomyślnie zadanie: " + taskId);
             
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             statusService.setStatus(taskId, "BŁĄD");
-            System.err.println("Przerwano zadanie: " + taskId);
+            System.err.println("[KAFKA] Przerwano zadanie: " + taskId);
         }
     }
 }

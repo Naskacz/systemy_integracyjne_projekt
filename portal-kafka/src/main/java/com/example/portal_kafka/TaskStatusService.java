@@ -1,18 +1,22 @@
 package com.example.portal_kafka;
-
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.Map;
+import java.time.Duration;
 
 @Service
 public class TaskStatusService {
-    private final Map<String, String> statuses = new ConcurrentHashMap<>();
-
+    private static final String KEY_PREFIX = "task:status:";
+    private static final Duration STATUS_TTL = Duration.ofHours(1);
+    private final StringRedisTemplate redisTemplate;
+    public TaskStatusService(StringRedisTemplate redisTemplate) {
+        this.redisTemplate = redisTemplate;
+    }
     public void setStatus(String taskId, String status) {
-        statuses.put(taskId, status);
+        redisTemplate.opsForValue().set(KEY_PREFIX + taskId, status, STATUS_TTL);
     }
 
     public String getStatus(String taskId) {
-        return statuses.getOrDefault(taskId, "NIEZNANE");
+        String status = redisTemplate.opsForValue().get(KEY_PREFIX + taskId);
+        return status != null ? status : "NIEZNANE";
     }
 }

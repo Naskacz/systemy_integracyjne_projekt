@@ -3,6 +3,7 @@ docker build -t portal-kafka:latest . --budowanie obrazu aplikacji
 kubectl apply -f k8s-deployment.yaml -- odpalenie aplikacji w kubernetes
 kubectl port-forward deployment/portal-kafka-app 8080:8080 -- przekierowanie portu z kontenera na lokalny port
 
+kubectl exec -it deployment/redis -- redis-cli MONITOR -- redis monitor
 kubectl rollout restart deployment portal-kafka-app -- restart aplikacji w kubernetes
 kubectl get pods -w -- podgląd podów
 kubectl get hpa -- podgląd hpa (--watch)

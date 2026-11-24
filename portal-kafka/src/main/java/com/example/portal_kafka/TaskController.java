@@ -29,7 +29,6 @@ public class TaskController {
 
         return ResponseEntity.accepted().body(taskId);
     }
-
     @GetMapping("/task/{id}/status")
     public ResponseEntity<String> getTaskStatus(@PathVariable String id) {
         String status = statusService.getStatus(id);

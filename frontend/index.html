@@ -11,17 +11,16 @@
         input { width: 100%; padding: 10px; border: 1px solid #d2d2d7; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
         button { width: 100%; margin-top: 20px; padding: 12px; background: #0066cc; color: white; border: none; border-radius: 8px; font-size: 15px; font-weight: 500; cursor: pointer; }
         button:hover { background: #0055b3; }
-        .response { margin-top: 20px; padding: 12px; border-radius: 8px; font-size: 14px; background: #eef2f5; display: none; }
+        .response { margin-top: 20px; padding: 12px; border-radius: 8px; font-size: 14px; background: #eef2f5; display: none; word-break: break-word; }
         .success { background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; }
         .error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2; }
     </style>
 </head>
 <body>
 
-    <!-- Pierwsze okno: Pojedyncze zadanie ze śledzeniem statusu -->
     <div class="card">
         <h2>Zleć nowe zadanie</h2>
-        
+
         <label for="sleepTime">Czas przetwarzania (ms):</label>
         <input type="number" id="sleepTime" value="4000">
 
@@ -30,10 +29,9 @@
         <div id="output" class="response"></div>
     </div>
 
-    <!-- Drugie okno: Masowe zlecanie zadań do testów HPA -->
     <div class="card">
         <h2>Masowe zlecanie zadań</h2>
-        
+
         <label for="taskCount">Liczba zapytań:</label>
         <input type="number" id="taskCount" value="50">
 
@@ -43,43 +41,57 @@
     </div>
 
     <script>
+        // Adres backendu wystawionego poza klastrem (np. przez kubectl port-forward)
+        const API_BASE_URL = 'http://localhost:8080';
+
         async function submitTask() {
             const sleepTime = document.getElementById('sleepTime').value;
             const output = document.getElementById('output');
-            
+
             output.style.display = 'block';
             output.className = 'response';
             output.innerHTML = "Wysyłanie żądania...";
 
             try {
-                const response = await fetch(`/api/task?sleepTime=${sleepTime}`, { method: 'POST' });
+                const response = await fetch(`${API_BASE_URL}/api/task?sleepTime=${sleepTime}`, { method: 'POST' });
                 const taskId = await response.text();
 
-                if (response.ok) {
-                    output.innerHTML = `<strong>Zadanie przyjęte!</strong><br>ID: <small>${taskId}</small><br>Status: <span id="status-${taskId}" style="font-weight:bold; color:#0066cc;">OCZEKUJE...</span>`;
-                    
-                    const interval = setInterval(async () => {
-                        const statusRes = await fetch(`/api/task/${taskId}/status`);
-                        const status = await statusRes.text();
-                        
-                        const statusSpan = document.getElementById(`status-${taskId}`);
-                        if (statusSpan) {
-                            statusSpan.innerText = status;
-                            
-                            if (status === "ZAKOŃCZONE") {
-                                statusSpan.style.color = "#2e7d32";
-                                clearInterval(interval);
-                            } else if (status === "BŁĄD") {
-                                statusSpan.style.color = "#c62828";
-                                clearInterval(interval);
-                            }
-                        }
-                    }, 1000);
-
-                } else {
+                if (!response.ok) {
                     output.className = 'response error';
                     output.innerText = `Błąd serwera: ${response.status}`;
+                    return;
                 }
+
+                output.innerHTML = `<strong>Zadanie przyjęte!</strong><br>ID: <small>${taskId}</small><br>Status: <span id="status-${taskId}" style="font-weight:bold; color:#0066cc;">OCZEKUJE...</span>`;
+
+                const interval = setInterval(async () => {
+                    try {
+                        const statusRes = await fetch(`${API_BASE_URL}/api/task/${taskId}/status`);
+                        if (!statusRes.ok) return;
+
+                        const status = await statusRes.text();
+                        const statusSpan = document.getElementById(`status-${taskId}`);
+                        if (!statusSpan) {
+                            clearInterval(interval);
+                            return;
+                        }
+
+                        statusSpan.innerText = status;
+
+                        if (status === "ZAKOŃCZONE") {
+                            statusSpan.style.color = "#2e7d32";
+                            output.className = 'response success';
+                            clearInterval(interval);
+                        } else if (status === "BŁĄD") {
+                            statusSpan.style.color = "#c62828";
+                            output.className = 'response error';
+                            clearInterval(interval);
+                        }
+                    } catch (pollErr) {
+                        console.warn("Chwilowy problem z odpytaniem statusu:", pollErr);
+                    }
+                }, 1000);
+
             } catch (err) {
                 output.className = 'response error';
                 output.innerText = 'Błąd połączenia z serwerem.';
@@ -97,11 +109,19 @@
 
             const requests = [];
             for (let i = 0; i < count; i++) {
-                requests.push(fetch(`/api/task?sleepTime=${sleepTime}`, { method: 'POST' }));
+                requests.push(fetch(`${API_BASE_URL}/api/task?sleepTime=${sleepTime}`, { method: 'POST' }));
             }
 
             try {
-                await Promise.all(requests);
+                const responses = await Promise.all(requests);
+                const failed = responses.filter(r => !r.ok).length;
+
+                if (failed > 0) {
+                    bulkOutput.className = 'response error';
+                    bulkOutput.innerText = `Wysłano ${count} zadań, ale ${failed} zwróciło błąd.`;
+                    return;
+                }
+
                 bulkOutput.className = 'response success';
                 bulkOutput.innerHTML = `<strong>Pomyślnie wysłano ${count} zadań!</strong><br>HPA zacznie je przetwarzać.`;
             } catch (err) {
